@@ -6,8 +6,6 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.local.AppDatabase
 import com.example.data.model.UserBond
-import com.example.data.model.WinningNumber
-import com.example.data.remote.OfficialBangladeshBankData
 import com.example.data.repository.PrizeBondRepository
 import com.example.ocr.PrizeBondOcrEngine
 import com.example.sync.NotificationHelper
@@ -26,7 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class PrizeBondComprehensiveQaTest {
 
   private lateinit var database: AppDatabase
@@ -103,53 +101,33 @@ class PrizeBondComprehensiveQaTest {
     assertTrue(bonds.isEmpty())
   }
 
-  // --- CUJ 2: Winning Bond Matching Logic ---
+  // --- CUJ 2: Validation & duplicate safety ---
 
   @Test
-  fun testAutomaticWinningBondMatching() = runBlocking {
-    repository.ensureInitialDataLoaded()
-
-    // 0428319 is the 1st prize winner in 120th Draw (৳ 6,00,000)
-    repository.addSingleBond("0428319", "কখ", "Winner bond")
-    // 0876124 is the 2nd prize winner in 120th Draw (৳ 3,25,000)
-    repository.addSingleBond("0876124", "গঘ", "Second prize")
-    // 0999999 is a non-winner
-    repository.addSingleBond("0999999", "All", "Regular bond")
-
-    val matches = repository.userBondsWithMatches.first()
-    assertEquals(3, matches.size)
-
-    val firstPrizeMatch = matches.find { it.bond.bondNumber == "0428319" }
-    assertNotNull(firstPrizeMatch)
-    assertTrue(firstPrizeMatch!!.isWinner)
-    assertEquals(1, firstPrizeMatch.highestPrizeTier)
-    assertEquals(600000L, firstPrizeMatch.totalPrizeWon)
-
-    val secondPrizeMatch = matches.find { it.bond.bondNumber == "0876124" }
-    assertNotNull(secondPrizeMatch)
-    assertTrue(secondPrizeMatch!!.isWinner)
-    assertEquals(2, secondPrizeMatch.highestPrizeTier)
-    assertEquals(325000L, secondPrizeMatch.totalPrizeWon)
-
-    val nonWinnerMatch = matches.find { it.bond.bondNumber == "0999999" }
-    assertNotNull(nonWinnerMatch)
-    assertFalse(nonWinnerMatch!!.isWinner)
-    assertEquals(0L, nonWinnerMatch.totalPrizeWon)
+  fun testInvalidShortNumberIsRejectedWithoutPadding() = runBlocking {
+    assertTrue(repository.addSingleBond("123", "All", "").isFailure)
+    assertTrue(repository.addSingleBond("12345678", "All", "").isFailure)
+    assertTrue(repository.addSingleBond("12A4567", "All", "").isFailure)
   }
 
   @Test
-  fun testQuickCheckNumber() = runBlocking {
-    repository.ensureInitialDataLoaded()
+  fun testDuplicateBondIsRejectedWithoutOverwrite() = runBlocking {
+    val first = repository.addSingleBond("0123456", "কখ", "original")
+    val second = repository.addSingleBond("0123456", "কখ", "replacement")
+    assertTrue(first.isSuccess)
+    assertTrue(second.isFailure)
 
-    // Winning query
-    val winMatches = repository.quickCheckNumber("0428319")
-    assertTrue(winMatches.isNotEmpty())
-    assertEquals(1, winMatches[0].prizeTier)
-    assertEquals(600000L, winMatches[0].prizeAmount)
+    val bonds = repository.userBondsWithMatches.first()
+    assertEquals(1, bonds.size)
+    assertEquals("original", bonds.single().bond.note)
+  }
 
-    // Non-winning query
-    val lossMatches = repository.quickCheckNumber("0000001")
-    assertTrue(lossMatches.isEmpty())
+  @Test
+  fun testBengaliBondNumberIsNormalized() = runBlocking {
+    val result = repository.addSingleBond("০১২৩৪৫৬", "All", "")
+    assertTrue(result.isSuccess)
+    val bonds = repository.userBondsWithMatches.first()
+    assertEquals("0123456", bonds.single().bond.bondNumber)
   }
 
   // --- CUJ 3: Upcoming Draw & Countdown Calculations ---

@@ -19,10 +19,10 @@ interface PrizeBondDao {
   @Query("SELECT * FROM user_bonds")
   suspend fun getAllUserBondsSnapshot(): List<UserBond>
 
-  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
   suspend fun insertBond(bond: UserBond): Long
 
-  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
   suspend fun insertBonds(bonds: List<UserBond>): List<Long>
 
   @Query("DELETE FROM user_bonds WHERE id = :id")

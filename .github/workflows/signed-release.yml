@@ -1,0 +1,77 @@
+name: Signed Release APK
+
+on:
+  push:
+    branches: ["fix/data-integrity-2026-09"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Verify release signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::Missing secret ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$ANDROID_STORE_PASSWORD" || { echo "::error::Missing secret ANDROID_STORE_PASSWORD"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::Missing secret ANDROID_KEY_PASSWORD"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::Missing secret ANDROID_KEY_ALIAS"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/prizebond-signing"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/prizebond-signing/upload-keystore.jks"
+          test -s "$RUNNER_TEMP/prizebond-signing/upload-keystore.jks"
+
+      - name: Run unit tests
+        run: gradle testDebugUnitTest
+
+      - name: Build signed release APK and AAB
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/prizebond-signing/upload-keystore.jks
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          gradle clean assembleRelease bundleRelease
+          test -s app/build/outputs/apk/release/app-release.apk
+          test -s app/build/outputs/bundle/release/app-release.aab
+
+      - name: Verify release APK signature
+        run: |
+          set -euo pipefail
+          apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload signed release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prize-bond-release-publish-ready
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30

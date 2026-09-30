@@ -8,6 +8,7 @@ import com.example.data.model.UserBond
 import com.example.data.model.WinningNumber
 import com.example.data.remote.BangladeshBankRemoteDataSource
 import com.example.data.remote.OfficialBangladeshBankData
+import com.example.util.PrizeBondNumberValidator
 import com.example.data.remote.RemoteSyncResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +41,7 @@ class PrizeBondRepository(
     val totalInvestment = totalCount * 100L // 100 Taka per bond
     val winners = bondMatches.filter { it.isWinner }
     val totalWinnings = winners.sumOf { it.totalPrizeWon }
-    val latestDraw = draws.firstOrNull()?.drawNumber ?: 120
+    val latestDraw = draws.firstOrNull()?.drawNumber ?: 0
     val lastSync = draws.firstOrNull()?.lastSyncedTimestamp ?: System.currentTimeMillis()
 
     BondSummaryStats(
@@ -55,29 +56,31 @@ class PrizeBondRepository(
 
   suspend fun ensureInitialDataLoaded() = withContext(Dispatchers.IO) {
     if (dao.getDrawCount() == 0) {
-      val initialDraws = OfficialBangladeshBankData.getOfficialDraws()
-      dao.insertDrawResults(initialDraws)
+      dao.insertDrawResults(OfficialBangladeshBankData.getOfficialDraws())
     }
     if (dao.getWinningNumberCount() == 0) {
-      val initialWinning = OfficialBangladeshBankData.getWinningNumbers()
-      dao.insertWinningNumbers(initialWinning)
+      dao.insertWinningNumbers(OfficialBangladeshBankData.getWinningNumbers())
     }
   }
 
   suspend fun syncWithRemote(): RemoteSyncResult = withContext(Dispatchers.IO) {
     val result = remoteDataSource.fetchLatestDrawResults()
     if (result is RemoteSyncResult.Success) {
-      dao.insertDrawResults(result.draws)
-      dao.insertWinningNumbers(result.winningNumbers)
+      if (result.draws.isNotEmpty()) {
+        dao.insertDrawResults(result.draws)
+      }
+      if (result.winningNumbers.isNotEmpty()) {
+        dao.insertWinningNumbers(result.winningNumbers)
+      }
     }
     result
   }
 
   suspend fun addSingleBond(number: String, series: String = "All", note: String = ""): Result<Long> = withContext(Dispatchers.IO) {
-    val cleaned = formatBondNumber(number)
-    if (cleaned.length != 7) {
-      return@withContext Result.failure(IllegalArgumentException("Bond number must be 7 digits (e.g. 0123456)"))
-    }
+    val cleaned = PrizeBondNumberValidator.validate(number)
+      ?: return@withContext Result.failure(
+        IllegalArgumentException("Bond number must contain exactly 7 digits (e.g. 0123456)")
+      )
     val bond = UserBond(
       bondNumber = cleaned,
       series = series.ifBlank { "All" },
@@ -85,19 +88,21 @@ class PrizeBondRepository(
     )
     try {
       val id = dao.insertBond(bond)
-      Result.success(id)
+      if (id == -1L) {
+        Result.failure(IllegalArgumentException("This bond number and series are already saved."))
+      } else {
+        Result.success(id)
+      }
     } catch (e: Exception) {
       Result.failure(e)
     }
   }
 
   suspend fun addSeriesRange(startNumber: String, endNumber: String, series: String = "All"): Result<Int> = withContext(Dispatchers.IO) {
-    val cleanedStart = formatBondNumber(startNumber)
-    val cleanedEnd = formatBondNumber(endNumber)
-
-    if (cleanedStart.length != 7 || cleanedEnd.length != 7) {
-      return@withContext Result.failure(IllegalArgumentException("Start and End numbers must be 7 digits"))
-    }
+    val cleanedStart = PrizeBondNumberValidator.validate(startNumber)
+      ?: return@withContext Result.failure(IllegalArgumentException("Start number must contain exactly 7 digits"))
+    val cleanedEnd = PrizeBondNumberValidator.validate(endNumber)
+      ?: return@withContext Result.failure(IllegalArgumentException("End number must contain exactly 7 digits"))
 
     val startLong = cleanedStart.toLongOrNull() ?: return@withContext Result.failure(IllegalArgumentException("Invalid start number"))
     val endLong = cleanedEnd.toLongOrNull() ?: return@withContext Result.failure(IllegalArgumentException("Invalid end number"))
@@ -120,8 +125,8 @@ class PrizeBondRepository(
       )
     }
 
-    dao.insertBonds(bonds)
-    Result.success(bonds.size)
+    val insertedIds = dao.insertBonds(bonds).count { it != -1L }
+    Result.success(insertedIds)
   }
 
   suspend fun addBulkText(rawText: String, defaultSeries: String = "All"): Result<Int> = withContext(Dispatchers.IO) {
@@ -130,11 +135,14 @@ class PrizeBondRepository(
     val validBonds = mutableListOf<UserBond>()
 
     for (token in tokens) {
-      // Check if token is digits
-      val digitsOnly = token.filter { it.isDigit() }
-      if (digitsOnly.length in 1..7) {
-        val padded = digitsOnly.padStart(7, '0')
-        validBonds.add(UserBond(bondNumber = padded, series = defaultSeries.ifBlank { "All" }))
+      val validNumber = PrizeBondNumberValidator.validate(token)
+      if (validNumber != null) {
+        validBonds.add(
+          UserBond(
+            bondNumber = validNumber,
+            series = defaultSeries.ifBlank { "All" }
+          )
+        )
       }
     }
 
@@ -142,12 +150,13 @@ class PrizeBondRepository(
       return@withContext Result.failure(IllegalArgumentException("No valid bond numbers found. Enter 7-digit numbers separated by commas or new lines."))
     }
 
-    dao.insertBonds(validBonds)
-    Result.success(validBonds.size)
+    val uniqueBonds = validBonds.distinctBy { it.bondNumber to it.series }
+    val insertedIds = dao.insertBonds(uniqueBonds)
+    Result.success(insertedIds.size)
   }
 
-  suspend fun insertUserBonds(bonds: List<UserBond>) = withContext(Dispatchers.IO) {
-    dao.insertBonds(bonds)
+  suspend fun insertUserBonds(bonds: List<UserBond>): Int = withContext(Dispatchers.IO) {
+    dao.insertBonds(bonds).count { it != -1L }
   }
 
   suspend fun deleteBond(id: Long) = withContext(Dispatchers.IO) {
@@ -159,21 +168,13 @@ class PrizeBondRepository(
   }
 
   suspend fun quickCheckNumber(number: String): List<WinningNumber> = withContext(Dispatchers.IO) {
-    val formatted = formatBondNumber(number)
-    if (formatted.length != 7) return@withContext emptyList()
-    dao.getWinningMatchesForNumber(formatted)
+    val formatted = PrizeBondNumberValidator.validate(number) ?: return@withContext emptyList()
+    val liveResults = remoteDataSource.checkNumber(formatted)
+    liveResults.getOrElse { dao.getWinningMatchesForNumber(formatted) }
   }
 
   fun getWinningNumbersForDraw(drawNumber: Int): Flow<List<WinningNumber>> {
     return dao.getWinningNumbersForDraw(drawNumber)
   }
 
-  private fun formatBondNumber(input: String): String {
-    val digits = input.filter { it.isDigit() }
-    return if (digits.length <= 7 && digits.isNotEmpty()) {
-      digits.padStart(7, '0')
-    } else {
-      digits
-    }
-  }
 }

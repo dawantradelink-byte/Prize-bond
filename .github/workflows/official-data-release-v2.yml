@@ -1,0 +1,164 @@
+name: Official Data Release APK v2
+
+on:
+  push:
+    branches: ["fix/data-integrity-2026-09"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+
+      - name: Download official Bangladesh Bank results
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/prizebond
+          for draw in 124th 123rd 122nd 121st 120th 119th 118th 117th; do
+            curl --fail --location --retry 6 --retry-all-errors --retry-delay 5 \
+              --connect-timeout 30 --max-time 180 --silent --show-error \
+              "https://www.bb.org.bd/investfacility/prizebond/${draw}draw.pdf" \
+              -o "/tmp/prizebond/${draw}.pdf"
+            pdftotext -layout "/tmp/prizebond/${draw}.pdf" "/tmp/prizebond/${draw}.txt"
+          done
+
+      - name: Generate and validate official dataset
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, hashlib
+
+          meta = [
+              ("124th", 124, "02 August 2026"),
+              ("123rd", 123, "30 April 2026"),
+              ("122nd", 122, "01 February 2026"),
+              ("121st", 121, "02 November 2025"),
+              ("120th", 120, "31 July 2025"),
+              ("119th", 119, "30 April 2025"),
+              ("118th", 118, "02 February 2025"),
+              ("117th", 117, "31 October 2024"),
+          ]
+          prize_amounts = [600000, 325000, 100000, 100000, 50000, 50000] + [10000] * 40
+          tiers = [1, 2, 3, 3, 4, 4] + [5] * 40
+
+          draws, winning = [], []
+          expected_124 = [
+              "0786345", "0911829", "0486181", "0700725", "0101571", "0677548",
+              "0050418", "0311203", "0559958", "0760359", "0900788",
+              "0115181", "0393187", "0588156", "0775152", "0912209",
+              "0139380", "0454894", "0605926", "0808651", "0924656",
+              "0146127", "0483646", "0654415", "0825345", "0946563",
+              "0152480", "0505976", "0669021", "0842904", "0952827",
+              "0185648", "0534811", "0706178", "0870417", "0967420",
+              "0293525", "0542962", "0740194", "0878442", "0970749",
+              "0307909", "0544707", "0758869", "0891209", "0979041",
+          ]
+          for slug, draw_no, date in meta:
+              pdf = Path("/tmp/prizebond") / f"{slug}.pdf"
+              raw = (Path("/tmp/prizebond") / f"{slug}.txt").read_text(errors="ignore")
+              raw = raw.translate(str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789"))
+              # Bangladesh Bank PDFs may format amounts with commas (e.g. 6,00,000).
+              # Remove commas only for parsing so the first-prize marker is stable.
+              raw = raw.replace(",", "")
+              # The official PDFs contain the bond-number range before the winners.
+              # The first prize line is the stable boundary across the different PDF layouts.
+              first_prize = raw.find("600000")
+              if first_prize < 0:
+                  raise SystemExit(f"{slug}: could not find first-prize marker")
+              prize_section = raw[first_prize:]
+              nums = re.findall(r"(?<!\d)\d{7}(?!\d)", prize_section)
+              if len(nums) < 46:
+                  raise SystemExit(f"{slug}: expected at least 46 7-digit winning numbers after first-prize marker, got {len(nums)}")
+              nums = nums[:46]
+              if len(set(nums)) != 46:
+                  raise SystemExit(f"{slug}: first 46 extracted winning numbers are not unique")
+              if draw_no == 124 and nums != expected_124:
+                  raise SystemExit(
+                      f"{slug}: official winning-number integrity check failed; "
+                      f"expected {expected_124[:6]}..., got {nums[:6]}..."
+                  )
+              digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
+              draws.append((draw_no, date, digest, f"https://www.bb.org.bd/investfacility/prizebond/{slug}draw.pdf"))
+              winning.extend((draw_no, tier, amount, number, date)
+                             for number, tier, amount in zip(nums, tiers, prize_amounts))
+
+          out = Path("app/src/main/java/com/example/data/remote/OfficialBangladeshBankData.kt")
+          lines = [
+              "package com.example.data.remote", "",
+              "import com.example.data.model.DrawResult",
+              "import com.example.data.model.WinningNumber", "",
+              "/** Official Bangladesh Bank 100 Taka Prize Bond results. Generated from official PDFs. */",
+              "object OfficialBangladeshBankData {",
+              "  data class Source(val drawNumber: Int, val url: String, val sha256: String)", "",
+              "  val sources: List<Source> = listOf("
+          ]
+          for draw_no, date, digest, url in draws:
+              lines.append(f'    Source({draw_no}, "{url}", "{digest}"),')
+          lines += ["  )", "", "  fun getOfficialDraws(): List<DrawResult> = listOf("]
+          for draw_no, date, digest, url in draws:
+              lines.append(f'    DrawResult(drawNumber = {draw_no}, drawDate = "{date}", drawPlace = "Dhaka", seriesCount = 0, validUntil = "", isOfficial = true),')
+          lines += ["  )", "", "  fun getWinningNumbers(): List<WinningNumber> = listOf("]
+          for draw_no, tier, amount, number, date in winning:
+              desc = {1:"1st Prize",2:"2nd Prize",3:"3rd Prize",4:"4th Prize",5:"5th Prize"}[tier]
+              lines.append(f'    WinningNumber(drawNumber = {draw_no}, prizeTier = {tier}, prizeAmount = {amount}, winningNumber = "{number}", prizeDescription = "{desc}", drawDate = "{date}"),')
+          lines += ["  )", "}",""]
+          out.write_text("\n".join(lines))
+
+          repo = Path("app/src/main/java/com/example/data/repository/PrizeBondRepository.kt")
+          s = repo.read_text()
+          if "import com.example.data.remote.OfficialBangladeshBankData" not in s:
+              s = s.replace(
+                  "import com.example.data.remote.BangladeshBankRemoteDataSource",
+                  "import com.example.data.remote.BangladeshBankRemoteDataSource\nimport com.example.data.remote.OfficialBangladeshBankData"
+              )
+          s = re.sub(
+              r"  suspend fun ensureInitialDataLoaded\(\) = withContext\(Dispatchers\.IO\) \{.*?\n  \}",
+              """  suspend fun ensureInitialDataLoaded() = withContext(Dispatchers.IO) {
+              if (dao.getDrawCount() == 0) {
+                dao.insertDrawResults(OfficialBangladeshBankData.getOfficialDraws())
+              }
+              if (dao.getWinningNumberCount() == 0) {
+                dao.insertWinningNumbers(OfficialBangladeshBankData.getWinningNumbers())
+              }
+            }""",
+              s, count=1, flags=re.S
+          )
+          repo.write_text(s)
+          print(f"Validated {len(winning)} official winning numbers across {len(draws)} draws.")
+          PY
+
+      - name: Unit tests
+        run: gradle testDebugUnitTest
+
+      - name: Debug APK build
+        run: gradle assembleDebug
+
+      - name: Commit verified dataset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/data/remote/OfficialBangladeshBankData.kt app/src/main/java/com/example/data/repository/PrizeBondRepository.kt
+          if git diff --cached --quiet; then
+            echo "No source changes."
+          else
+            git commit -m "feat: load verified Bangladesh Bank prize data"
+            git push
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: prize-bond-official-data-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
