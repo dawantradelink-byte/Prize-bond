@@ -55,7 +55,8 @@ jobs:
           for slug, draw_no, date in meta:
               pdf = Path("/tmp/prizebond") / f"{slug}.pdf"
               raw = (Path("/tmp/prizebond") / f"{slug}.txt").read_text(errors="ignore")
-              nums = re.findall(r"(?<!\\d)\\d{7}(?!\\d)", raw)
+              raw = raw.translate(str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789"))
+              nums = re.findall(r"(?<!\d)\d{7}(?!\d)", raw)
               if len(nums) != 46 or len(set(nums)) != 46:
                   raise SystemExit(f"{slug}: expected 46 unique 7-digit winning numbers, got {len(nums)}")
               digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
