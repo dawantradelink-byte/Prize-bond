@@ -45,7 +45,7 @@ class ScreenInteractionTest {
   }
 
   @Test
-  fun myBondsScreen_searchAndDelete_areHandledByCallbacks() {
+  fun myBondsScreen_displaysBondAndDeleteCallbackWorks() {
     val bond = UserBond(
       id = 1L,
       bondNumber = "0666666",
