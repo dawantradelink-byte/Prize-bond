@@ -164,7 +164,8 @@ class PrizeBondRepository(
 
   suspend fun quickCheckNumber(number: String): List<WinningNumber> = withContext(Dispatchers.IO) {
     val formatted = PrizeBondNumberValidator.validate(number) ?: return@withContext emptyList()
-    dao.getWinningMatchesForNumber(formatted)
+    val liveResults = remoteDataSource.checkNumber(formatted)
+    if (liveResults.isNotEmpty()) liveResults else dao.getWinningMatchesForNumber(formatted)
   }
 
   fun getWinningNumbersForDraw(drawNumber: Int): Flow<List<WinningNumber>> {
