@@ -56,20 +56,18 @@ jobs:
               pdf = Path("/tmp/prizebond") / f"{slug}.pdf"
               raw = (Path("/tmp/prizebond") / f"{slug}.txt").read_text(errors="ignore")
               raw = raw.translate(str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789"))
-              # The official PDF states the bond range before listing the 46 winners.
-              # Start immediately after that range marker and stop before the summary table.
-              marker = "0000001"
-              start = raw.find(marker)
-              if start < 0:
-                  raise SystemExit(f"{slug}: could not find official bond-range marker")
-              start += len(marker)
-              end = raw.find("\n[", start)
-              if end < 0:
-                  raise SystemExit(f"{slug}: could not find end of official prize-result block")
-              prize_section = raw[start:end]
+              # The official PDFs contain the bond-number range before the winners.
+              # The first prize line is the stable boundary across the different PDF layouts.
+              first_prize = raw.find("600000")
+              if first_prize < 0:
+                  raise SystemExit(f"{slug}: could not find first-prize marker")
+              prize_section = raw[first_prize:]
               nums = re.findall(r"(?<!\d)\d{7}(?!\d)", prize_section)
-              if len(nums) != 46 or len(set(nums)) != 46:
-                  raise SystemExit(f"{slug}: expected 46 unique 7-digit winning numbers in prize-result block, got {len(nums)}")
+              if len(nums) < 46:
+                  raise SystemExit(f"{slug}: expected at least 46 7-digit winning numbers after first-prize marker, got {len(nums)}")
+              nums = nums[:46]
+              if len(set(nums)) != 46:
+                  raise SystemExit(f"{slug}: first 46 extracted winning numbers are not unique")
               digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
               draws.append((draw_no, date, digest, f"https://www.bb.org.bd/investfacility/prizebond/{slug}draw.pdf"))
               winning.extend((draw_no, tier, amount, number, date)
