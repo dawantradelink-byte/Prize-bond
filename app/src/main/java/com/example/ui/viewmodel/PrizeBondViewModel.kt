@@ -11,6 +11,7 @@ import com.example.data.model.UserBond
 import com.example.data.remote.RemoteSyncResult
 import com.example.data.repository.PrizeBondRepository
 import com.example.ocr.PrizeBondOcrEngine
+import com.example.util.PrizeBondNumberValidator
 import com.example.ocr.ScannedBondCandidate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -142,7 +143,7 @@ class PrizeBondViewModel(
       if (result.isSuccess) {
         _operationState.value = UiOperationState(
           isLoading = false,
-          userMessage = "Bond ${number.padStart(7, '0')} ($series) saved successfully!",
+          userMessage = "Bond ${PrizeBondNumberValidator.normalize(number)} ($series) saved successfully!",
           isError = false
         )
         _currentTab.value = AppNavTab.MY_BONDS
@@ -361,11 +362,15 @@ class PrizeBondViewModel(
         )
       }
       try {
-        repository.insertUserBonds(bonds)
+        val importedCount = repository.insertUserBonds(bonds)
         _scannedCandidates.value = emptyList()
         _operationState.value = UiOperationState(
           isLoading = false,
-          userMessage = "Imported ${bonds.size} scanned bond(s) directly into your portfolio!",
+          userMessage = if (importedCount == bonds.size) {
+            "Imported $importedCount scanned bond(s) into your portfolio!"
+          } else {
+            "Imported $importedCount new bond(s). Duplicate bonds were skipped."
+          },
           isError = false
         )
         _currentTab.value = AppNavTab.MY_BONDS
