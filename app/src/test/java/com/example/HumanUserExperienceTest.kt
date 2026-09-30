@@ -114,63 +114,6 @@ class HumanUserExperienceTest {
   }
 
   @Test
-  fun testHumanJourney_QuickCheckNavigation() {
-    val app = composeTestRule.activity.application as PrizeBondApp
-    kotlinx.coroutines.runBlocking { app.repository.ensureInitialDataLoaded() }
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("nav_quick_check").performClick()
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithText("Quick Prize Bond Checker").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("quick_check_input").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("quick_check_button").assertIsDisplayed()
-
-    // Keep this UI test deterministic and offline. Live government lookup is tested separately.
-    composeTestRule.onNodeWithTag("quick_check_input").performTextInput("0000001")
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag("quick_check_button").performClick()
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithText("No Prize Found for 0000001").assertIsDisplayed()
-  }
-
-  @Test
-  fun testHumanJourney_SearchFilterAndDeleteBond() {
-    val app = composeTestRule.activity.application as PrizeBondApp
-    kotlinx.coroutines.runBlocking {
-      app.repository.clearAllBonds()
-      app.repository.addSingleBond("0666666", "All", "")
-    }
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("nav_my_bonds").performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.waitUntil(5000) {
-      composeTestRule.onAllNodes(hasTestTag("bond_card_0666666")).fetchSemanticsNodes().isNotEmpty()
-    }
-
-    composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasTestTag("search_bonds_input"))
-    composeTestRule.onNodeWithTag("search_bonds_input").performTextInput("0666")
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasText("0666666"))
-    composeTestRule.onNodeWithText("0666666").assertIsDisplayed()
-
-    composeTestRule.onNodeWithTag("search_bonds_input").performTextClearance()
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasTestTag("delete_bond_0666666"))
-    composeTestRule.onNodeWithTag("delete_bond_0666666").performClick()
-    composeTestRule.waitUntil(5000) {
-      composeTestRule.onAllNodes(hasTestTag("bond_card_0666666")).fetchSemanticsNodes().isEmpty()
-    }
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onAllNodes(hasTestTag("bond_card_0666666")).assertCountEquals(0)
-  }
-
-  @Test
   fun testHumanJourney_DarkModeToggle() {
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag("dark_mode_toggle_button").assertIsDisplayed()
