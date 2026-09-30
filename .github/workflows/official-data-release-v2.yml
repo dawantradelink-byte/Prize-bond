@@ -56,20 +56,20 @@ jobs:
               pdf = Path("/tmp/prizebond") / f"{slug}.pdf"
               raw = (Path("/tmp/prizebond") / f"{slug}.txt").read_text(errors="ignore")
               raw = raw.translate(str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789"))
-              # The official PDF also mentions the full bond-number range (0000001 to 1000000).
-              # Parse only the prize-result section, starting at the 1st-prize line, so that
-              # 0000001 is never mistaken for a winning number.
-              prize_lines = []
-              started = False
-              for line in raw.splitlines():
-                  compact = re.sub(r"[^0-9]", "", line)
-                  if not started and ("600000" in compact or "600000" in line.replace(",", "")):
-                      started = True
-                  if started:
-                      prize_lines.append(line)
-              nums = re.findall(r"(?<!\d)\d{7}(?!\d)", "\n".join(prize_lines))
+              # The official PDF states the bond range before listing the 46 winners.
+              # Start immediately after that range marker and stop before the summary table.
+              marker = "0000001"
+              start = raw.find(marker)
+              if start < 0:
+                  raise SystemExit(f"{slug}: could not find official bond-range marker")
+              start += len(marker)
+              end = raw.find("\n[", start)
+              if end < 0:
+                  raise SystemExit(f"{slug}: could not find end of official prize-result block")
+              prize_section = raw[start:end]
+              nums = re.findall(r"(?<!\d)\d{7}(?!\d)", prize_section)
               if len(nums) != 46 or len(set(nums)) != 46:
-                  raise SystemExit(f"{slug}: expected 46 unique 7-digit winning numbers in prize section, got {len(nums)}")
+                  raise SystemExit(f"{slug}: expected 46 unique 7-digit winning numbers in prize-result block, got {len(nums)}")
               digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
               draws.append((draw_no, date, digest, f"https://www.bb.org.bd/investfacility/prizebond/{slug}draw.pdf"))
               winning.extend((draw_no, tier, amount, number, date)
