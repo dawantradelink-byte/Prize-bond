@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.RealtimeCameraScannerView
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.QuickCheckResult
+import com.example.util.PrizeBondNumberValidator
 
 @Composable
 fun QuickCheckScreen(
@@ -265,7 +266,7 @@ fun QuickCheckScreen(
               }
 
               Text(
-                text = "Bond Number: ${quickCheckResult.queryNumber.padStart(7, '0')}",
+                text = "Bond Number: ${PrizeBondNumberValidator.normalize(quickCheckResult.queryNumber)}",
                 style = MaterialTheme.typography.headlineMedium.copy(
                   fontFamily = FontFamily.Monospace,
                   fontWeight = FontWeight.Bold,
@@ -334,7 +335,7 @@ fun QuickCheckScreen(
               Spacer(modifier = Modifier.width(12.dp))
               Column {
                 Text(
-                  text = "No Prize Found for ${quickCheckResult.queryNumber.padStart(7, '0')}",
+                  text = "No Prize Found for ${PrizeBondNumberValidator.normalize(quickCheckResult.queryNumber)}",
                   style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                   color = if (isDarkMode) Color.White else InkPrimary
                 )
