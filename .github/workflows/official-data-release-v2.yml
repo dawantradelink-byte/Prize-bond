@@ -26,7 +26,8 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/prizebond
           for draw in 124th 123rd 122nd 121st 120th 119th 118th 117th; do
-            curl --fail --location --retry 3 --silent --show-error \
+            curl --fail --location --retry 6 --retry-all-errors --retry-delay 5 \
+              --connect-timeout 30 --max-time 180 --silent --show-error \
               "https://www.bb.org.bd/investfacility/prizebond/${draw}draw.pdf" \
               -o "/tmp/prizebond/${draw}.pdf"
             pdftotext -layout "/tmp/prizebond/${draw}.pdf" "/tmp/prizebond/${draw}.txt"
