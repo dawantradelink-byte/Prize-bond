@@ -1,0 +1,6 @@
+{
+  "name": "PrizeBond BD",
+  "description": "100 Taka Bangladesh Bank Prize Bond checker with automatic draw matching, prize highlighting, Room storage, and background sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
