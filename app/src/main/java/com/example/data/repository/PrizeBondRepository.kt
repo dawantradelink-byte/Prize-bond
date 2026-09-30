@@ -61,8 +61,12 @@ class PrizeBondRepository(
   suspend fun syncWithRemote(): RemoteSyncResult = withContext(Dispatchers.IO) {
     val result = remoteDataSource.fetchLatestDrawResults()
     if (result is RemoteSyncResult.Success) {
-      dao.insertDrawResults(result.draws)
-      dao.insertWinningNumbers(result.winningNumbers)
+      if (result.draws.isNotEmpty()) {
+        dao.insertDrawResults(result.draws)
+      }
+      if (result.winningNumbers.isNotEmpty()) {
+        dao.insertWinningNumbers(result.winningNumbers)
+      }
     }
     result
   }
