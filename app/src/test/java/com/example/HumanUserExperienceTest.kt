@@ -122,7 +122,7 @@ class HumanUserExperienceTest {
 
     // Keep this UI test deterministic and offline. Live government lookup is tested separately.
     composeTestRule.onNodeWithTag("quick_check_input").performTextClearance()
-    composeTestRule.onNodeWithTag("quick_check_input").performTextInput("123456")
+    composeTestRule.onNodeWithTag("quick_check_input").performTextInput("0000001")
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag("quick_check_button").performClick()
     composeTestRule.waitForIdle()
@@ -146,13 +146,13 @@ class HumanUserExperienceTest {
     composeTestRule.onNodeWithTag("add_bonds_list").performScrollToNode(hasTestTag("submit_single_bond_button"))
     composeTestRule.onNodeWithTag("submit_single_bond_button").performClick()
     composeTestRule.waitUntil(5000) {
-      composeTestRule.onAllNodes(hasTestTag("my_bonds_list")).fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodes(hasTestTag("bond_card_0666666")).fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasTestTag("search_bonds_input"))
     composeTestRule.onNodeWithTag("search_bonds_input").performTextClearance()
-    composeTestRule.onNodeWithTag("search_bonds_input").performTextInput("0555")
+    composeTestRule.onNodeWithTag("search_bonds_input").performTextInput("0666")
     composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasText("0666666"))
