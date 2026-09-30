@@ -4,6 +4,7 @@ import com.example.data.model.DrawResult
 import com.example.data.model.WinningNumber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -37,6 +38,58 @@ class BangladeshBankRemoteDataSource {
     } catch (e: Exception) {
       RemoteSyncResult.Error("Bangladesh Bank sync unavailable: ${e.message ?: "network error"}")
     }
+  }
+
+  suspend fun checkNumber(number: String): List<WinningNumber> = withContext(Dispatchers.IO) {
+    try {
+      val body = FormBody.Builder().add("from", number).build()
+      val request = Request.Builder()
+        .url("https://prizebond.ird.gov.bd/hybrid_action_b2e.php")
+        .header("User-Agent", "PrizeBondBD-Android/1.0")
+        .header("Accept", "text/html")
+        .post(body)
+        .build()
+      client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) return@withContext emptyList()
+        parsePbrisResults(response.body?.string().orEmpty(), number)
+      }
+    } catch (_: Exception) {
+      emptyList()
+    }
+  }
+
+  private fun parsePbrisResults(html: String, number: String): List<WinningNumber> {
+    val normalizedHtml = normalizeBengaliDigits(html)
+    val rowPattern = Regex("""<tr>\s*<td>[^<]+</td>\s*<td>([^<]+)</td>\s*<td>(\d+)</td>\s*<td>(\d{4}-\d{2}-\d{2})</td>""", RegexOption.IGNORE_CASE)
+    return rowPattern.findAll(normalizedHtml).mapNotNull { match ->
+      val tier = when (match.groupValues[1].trim()) {
+        "1ম", "1st" -> 1
+        "2য়", "2nd" -> 2
+        "3য়", "3rd" -> 3
+        "4র্থ", "4th" -> 4
+        "5ম", "5th" -> 5
+        else -> return@mapNotNull null
+      }
+      val amount = match.groupValues[2].toLongOrNull() ?: return@mapNotNull null
+      val date = match.groupValues[3]
+      WinningNumber(
+        drawNumber = 0,
+        prizeTier = tier,
+        prizeAmount = amount,
+        winningNumber = number,
+        prizeDescription = when (tier) { 1 -> "1st Prize"; 2 -> "2nd Prize"; 3 -> "3rd Prize"; 4 -> "4th Prize"; else -> "5th Prize" },
+        drawDate = date
+      )
+    }.toList()
+  }
+
+  private fun normalizeBengaliDigits(input: String): String {
+    val bengali = "০১২৩৪৫৬৭৮৯"
+    val latin = "0123456789"
+    return input.map { ch ->
+      val index = bengali.indexOf(ch)
+      if (index >= 0) latin[index] else ch
+    }.joinToString("")
   }
 
   private fun parseDrawMetadata(html: String): List<DrawResult> {
