@@ -56,6 +56,9 @@ jobs:
               pdf = Path("/tmp/prizebond") / f"{slug}.pdf"
               raw = (Path("/tmp/prizebond") / f"{slug}.txt").read_text(errors="ignore")
               raw = raw.translate(str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789"))
+              # Bangladesh Bank PDFs may format amounts with commas (e.g. 6,00,000).
+              # Remove commas only for parsing so the first-prize marker is stable.
+              raw = raw.replace(",", "")
               # The official PDFs contain the bond-number range before the winners.
               # The first prize line is the stable boundary across the different PDF layouts.
               first_prize = raw.find("600000")
