@@ -83,7 +83,11 @@ class PrizeBondRepository(
     )
     try {
       val id = dao.insertBond(bond)
-      Result.success(id)
+      if (id == -1L) {
+        Result.failure(IllegalArgumentException("This bond number and series are already saved."))
+      } else {
+        Result.success(id)
+      }
     } catch (e: Exception) {
       Result.failure(e)
     }
@@ -116,8 +120,8 @@ class PrizeBondRepository(
       )
     }
 
-    dao.insertBonds(bonds)
-    Result.success(bonds.size)
+    val insertedIds = dao.insertBonds(bonds).count { it != -1L }
+    Result.success(insertedIds)
   }
 
   suspend fun addBulkText(rawText: String, defaultSeries: String = "All"): Result<Int> = withContext(Dispatchers.IO) {
@@ -146,8 +150,8 @@ class PrizeBondRepository(
     Result.success(insertedIds.size)
   }
 
-  suspend fun insertUserBonds(bonds: List<UserBond>) = withContext(Dispatchers.IO) {
-    dao.insertBonds(bonds)
+  suspend fun insertUserBonds(bonds: List<UserBond>): Int = withContext(Dispatchers.IO) {
+    dao.insertBonds(bonds).count { it != -1L }
   }
 
   suspend fun deleteBond(id: Long) = withContext(Dispatchers.IO) {
