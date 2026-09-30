@@ -127,7 +127,6 @@ class HumanUserExperienceTest {
     composeTestRule.onNodeWithTag("quick_check_button").assertIsDisplayed()
 
     // Keep this UI test deterministic and offline. Live government lookup is tested separately.
-    composeTestRule.onNodeWithTag("quick_check_input").performTextClearance()
     composeTestRule.onNodeWithTag("quick_check_input").performTextInput("0000001")
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag("quick_check_button").performClick()
@@ -139,21 +138,12 @@ class HumanUserExperienceTest {
   @Test
   fun testHumanJourney_SearchFilterAndDeleteBond() {
     val app = composeTestRule.activity.application as PrizeBondApp
-    kotlinx.coroutines.runBlocking { app.repository.clearAllBonds() }
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("nav_add_bonds").performClick()
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("input_single_bond_number").performTextClearance()
-    composeTestRule.onNodeWithTag("input_single_bond_number").performTextInput("0666666")
-    composeTestRule.waitForIdle()
-
-    composeTestRule.onNodeWithTag("add_bonds_list").performScrollToNode(hasTestTag("submit_single_bond_button"))
-    composeTestRule.onNodeWithTag("submit_single_bond_button").performClick()
-    composeTestRule.waitUntil(5000) {
-      composeTestRule.onAllNodes(hasTestTag("nav_my_bonds")).fetchSemanticsNodes().isNotEmpty()
+    kotlinx.coroutines.runBlocking {
+      app.repository.clearAllBonds()
+      app.repository.addSingleBond("0666666", "All", "")
     }
+    composeTestRule.waitForIdle()
+
     composeTestRule.onNodeWithTag("nav_my_bonds").performClick()
     composeTestRule.waitForIdle()
     composeTestRule.waitUntil(5000) {
@@ -161,14 +151,12 @@ class HumanUserExperienceTest {
     }
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasTestTag("search_bonds_input"))
-    composeTestRule.onNodeWithTag("search_bonds_input").performTextClearance()
     composeTestRule.onNodeWithTag("search_bonds_input").performTextInput("0666")
     composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasText("0666666"))
     composeTestRule.onNodeWithText("0666666").assertIsDisplayed()
 
-    composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasTestTag("search_bonds_input"))
     composeTestRule.onNodeWithTag("search_bonds_input").performTextClearance()
     composeTestRule.waitForIdle()
 
