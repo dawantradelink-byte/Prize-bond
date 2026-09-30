@@ -106,7 +106,7 @@ fun QuickCheckScreen(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = "Instant 1-click check of any 100 Taka bond number across all 8 active Bangladesh Bank quarterly draws without saving it to your portfolio.",
+          text = "Live check against the government Prize Bond result service without saving the number to your portfolio.",
           style = MaterialTheme.typography.bodyMedium,
           color = if (isDarkMode) Color(0xFFA09D96) else BodyMuted
         )
@@ -293,7 +293,7 @@ fun QuickCheckScreen(
                         color = if (isDarkMode) GoldLight else RoyalGoldDark
                       )
                       Text(
-                        text = "Draw #${win.drawNumber}",
+                        text = if (win.drawNumber > 0) "Draw #${win.drawNumber}" else "Verified draw",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = if (isDarkMode) Color.White else InkPrimary
                       )
@@ -340,7 +340,7 @@ fun QuickCheckScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                  text = "This number was not drawn in any of the active 8 quarterly draws (113th through 120th). Keep your bond safe, as each bond is automatically entered into future quarterly draws until redeemed.",
+                  text = "No prize was returned by the government result service for this number. You can check again after future draws.",
                   style = MaterialTheme.typography.bodyMedium,
                   color = if (isDarkMode) Color(0xFFA09D96) else BodyMuted
                 )
