@@ -127,7 +127,7 @@ class HumanUserExperienceTest {
     composeTestRule.onNodeWithTag("quick_check_button").performClick()
     composeTestRule.waitForIdle()
 
-    composeTestRule.onNodeWithText("No Prize Found for 123456").assertIsDisplayed()
+    composeTestRule.onNodeWithText("No Prize Found for 0000001").assertIsDisplayed()
   }
 
   @Test
@@ -146,9 +146,13 @@ class HumanUserExperienceTest {
     composeTestRule.onNodeWithTag("add_bonds_list").performScrollToNode(hasTestTag("submit_single_bond_button"))
     composeTestRule.onNodeWithTag("submit_single_bond_button").performClick()
     composeTestRule.waitUntil(5000) {
+      composeTestRule.onAllNodes(hasTestTag("nav_my_bonds")).fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("nav_my_bonds").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.waitUntil(5000) {
       composeTestRule.onAllNodes(hasTestTag("bond_card_0666666")).fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasTestTag("search_bonds_input"))
     composeTestRule.onNodeWithTag("search_bonds_input").performTextClearance()
