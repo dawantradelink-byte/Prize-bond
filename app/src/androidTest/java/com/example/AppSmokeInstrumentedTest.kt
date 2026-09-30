@@ -1,6 +1,8 @@
 package com.example
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -17,10 +19,6 @@ import org.junit.runner.RunWith
  * bond creation, search/filter UI, and the main app tabs.
  */
 @RunWith(AndroidJUnit4::class)
-fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
-  check(fetchSemanticsNodes().isNotEmpty()) { "Expected Compose node to exist" }
-}
-
 class AppSmokeInstrumentedTest {
 
   @get:Rule
@@ -28,7 +26,7 @@ class AppSmokeInstrumentedTest {
 
   @Test
   fun fullAppSmokeJourney() {
-    composeRule.onNodeWithTag("my_bonds_list").assertExistsCompat()
+    composeRule.onNodeWithTag("my_bonds_list").assertExists()
     composeRule.onNodeWithTag("sync_header_button").assertExistsCompat()
     composeRule.onNodeWithTag("dark_mode_toggle_button").assertExistsCompat()
     composeRule.onNodeWithTag("search_bonds_input").assertExistsCompat()
@@ -48,9 +46,9 @@ class AppSmokeInstrumentedTest {
     // Return to the portfolio and verify the saved bonds are rendered.
     composeRule.onNodeWithTag("nav_my_bonds").performClick()
     composeRule.waitUntil(timeoutMillis = 5_000) {
-      composeRule.onAllNodes(
-        androidx.compose.ui.test.hasTestTag("bond_card_0785001")
-      ).fetchSemanticsNodes().isNotEmpty()
+      runCatching {
+        composeRule.onNodeWithTag("bond_card_0785001").assertExists()
+      }.isSuccess
     }
     composeRule.onNodeWithTag("bond_card_0785001").assertExistsCompat()
     composeRule.onNodeWithTag("bond_card_0785003").assertExistsCompat()
