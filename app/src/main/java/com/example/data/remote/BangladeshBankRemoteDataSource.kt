@@ -40,7 +40,7 @@ class BangladeshBankRemoteDataSource {
     }
   }
 
-  suspend fun checkNumber(number: String): List<WinningNumber> = withContext(Dispatchers.IO) {
+  suspend fun checkNumber(number: String): Result<List<WinningNumber>> = withContext(Dispatchers.IO) {
     try {
       val body = FormBody.Builder().add("from", number).build()
       val request = Request.Builder()
@@ -50,11 +50,11 @@ class BangladeshBankRemoteDataSource {
         .post(body)
         .build()
       client.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) return@withContext emptyList()
-        parsePbrisResults(response.body?.string().orEmpty(), number)
+        if (!response.isSuccessful) return@withContext Result.failure(IllegalStateException("Government result service returned HTTP ${response.code}"))
+        Result.success(parsePbrisResults(response.body?.string().orEmpty(), number))
       }
-    } catch (_: Exception) {
-      emptyList()
+    } catch (e: Exception) {
+      Result.failure(e)
     }
   }
 
