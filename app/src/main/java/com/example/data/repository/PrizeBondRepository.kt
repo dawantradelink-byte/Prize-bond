@@ -7,6 +7,7 @@ import com.example.data.model.DrawResult
 import com.example.data.model.UserBond
 import com.example.data.model.WinningNumber
 import com.example.data.remote.BangladeshBankRemoteDataSource
+import com.example.data.remote.OfficialBangladeshBankData
 import com.example.util.PrizeBondNumberValidator
 import com.example.data.remote.RemoteSyncResult
 import kotlinx.coroutines.Dispatchers
@@ -54,8 +55,12 @@ class PrizeBondRepository(
   }.flowOn(Dispatchers.Default)
 
   suspend fun ensureInitialDataLoaded() = withContext(Dispatchers.IO) {
-    // No guessed or stale prize-bond results are seeded on first launch.
-    // Official data must be fetched and verified before it enters Room.
+    if (dao.getDrawCount() == 0) {
+      dao.insertDrawResults(OfficialBangladeshBankData.getOfficialDraws())
+    }
+    if (dao.getWinningNumberCount() == 0) {
+      dao.insertWinningNumbers(OfficialBangladeshBankData.getWinningNumbers())
+    }
   }
 
   suspend fun syncWithRemote(): RemoteSyncResult = withContext(Dispatchers.IO) {
