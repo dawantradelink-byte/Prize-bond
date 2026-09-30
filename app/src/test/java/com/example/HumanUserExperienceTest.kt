@@ -46,6 +46,8 @@ class HumanUserExperienceTest {
       composeTestRule.onAllNodes(hasTestTag("my_bonds_list")).fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("nav_my_bonds").performClick()
+    composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasText("0666666"))
     composeTestRule.onNodeWithText("0666666").assertIsDisplayed()
@@ -83,6 +85,8 @@ class HumanUserExperienceTest {
       composeTestRule.onAllNodes(hasTestTag("my_bonds_list")).fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("nav_my_bonds").performClick()
+    composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasText("0123400"))
     composeTestRule.onNodeWithText("0123400").assertIsDisplayed()
@@ -101,6 +105,8 @@ class HumanUserExperienceTest {
     composeTestRule.waitUntil(5000) {
       composeTestRule.onAllNodes(hasTestTag("my_bonds_list")).fetchSemanticsNodes().isNotEmpty()
     }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("nav_my_bonds").performClick()
     composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("my_bonds_list").performScrollToNode(hasText("0876124"))
