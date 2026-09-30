@@ -40,7 +40,7 @@ class PrizeBondRepository(
     val totalInvestment = totalCount * 100L // 100 Taka per bond
     val winners = bondMatches.filter { it.isWinner }
     val totalWinnings = winners.sumOf { it.totalPrizeWon }
-    val latestDraw = draws.firstOrNull()?.drawNumber ?: 120
+    val latestDraw = draws.firstOrNull()?.drawNumber ?: 0
     val lastSync = draws.firstOrNull()?.lastSyncedTimestamp ?: System.currentTimeMillis()
 
     BondSummaryStats(
@@ -163,8 +163,7 @@ class PrizeBondRepository(
   }
 
   suspend fun quickCheckNumber(number: String): List<WinningNumber> = withContext(Dispatchers.IO) {
-    val formatted = formatBondNumber(number)
-    if (formatted.length != 7) return@withContext emptyList()
+    val formatted = PrizeBondNumberValidator.validate(number) ?: return@withContext emptyList()
     dao.getWinningMatchesForNumber(formatted)
   }
 
