@@ -2,7 +2,6 @@ package com.example
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.assertExists
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -27,17 +26,17 @@ class AppSmokeInstrumentedTest {
   @Test
   fun fullAppSmokeJourney() {
     composeRule.onNodeWithTag("my_bonds_list").assertExists()
-    composeRule.onNodeWithTag("sync_header_button").assertExistsCompat()
-    composeRule.onNodeWithTag("dark_mode_toggle_button").assertExistsCompat()
-    composeRule.onNodeWithTag("search_bonds_input").assertExistsCompat()
+    composeRule.onNodeWithTag("sync_header_button").assertExists()
+    composeRule.onNodeWithTag("dark_mode_toggle_button").assertExists()
+    composeRule.onNodeWithTag("search_bonds_input").assertExists()
 
     // Exercise dark-mode state without leaving the current screen.
     composeRule.onNodeWithTag("dark_mode_toggle_button").performClick()
-    composeRule.onNodeWithTag("my_bonds_list").assertExistsCompat()
+    composeRule.onNodeWithTag("my_bonds_list").assertExists()
 
     // Add a small valid range through the real UI.
     composeRule.onNodeWithTag("nav_add_bonds").performClick()
-    composeRule.onNodeWithTag("add_bonds_list").assertExistsCompat()
+    composeRule.onNodeWithTag("add_bonds_list").assertExists()
     composeRule.onNodeWithTag("tab_series_range").performClick()
     composeRule.onNodeWithTag("input_range_start").performTextInput("0785001")
     composeRule.onNodeWithTag("input_range_end").performTextInput("0785003")
@@ -50,29 +49,29 @@ class AppSmokeInstrumentedTest {
         composeRule.onNodeWithTag("bond_card_0785001").assertExists()
       }.isSuccess
     }
-    composeRule.onNodeWithTag("bond_card_0785001").assertExistsCompat()
-    composeRule.onNodeWithTag("bond_card_0785003").assertExistsCompat()
+    composeRule.onNodeWithTag("bond_card_0785001").assertExists()
+    composeRule.onNodeWithTag("bond_card_0785003").assertExists()
 
     // Search must filter the portfolio to the requested bond.
     composeRule.onNodeWithTag("search_bonds_input").performTextInput("0785002")
-    composeRule.onNodeWithTag("bond_card_0785002").assertExistsCompat()
+    composeRule.onNodeWithTag("bond_card_0785002").assertExists()
 
     // Exercise the remaining top-level screens.
     composeRule.onNodeWithTag("nav_draw_results").performClick()
-    composeRule.onNodeWithTag("draw_results_list").assertExistsCompat()
+    composeRule.onNodeWithTag("draw_results_list").assertExists()
 
     composeRule.onNodeWithTag("nav_quick_check").performClick()
-    composeRule.onNodeWithTag("quick_check_list").assertExistsCompat()
-    composeRule.onNodeWithTag("quick_check_input").assertExistsCompat()
-    composeRule.onNodeWithTag("quick_check_button").assertExistsCompat()
+    composeRule.onNodeWithTag("quick_check_list").assertExists()
+    composeRule.onNodeWithTag("quick_check_input").assertExists()
+    composeRule.onNodeWithTag("quick_check_button").assertExists()
 
     composeRule.onNodeWithTag("nav_settings").performClick()
-    composeRule.onNodeWithTag("settings_dark_mode_switch").assertExistsCompat()
-    composeRule.onNodeWithTag("manual_sync_button").assertExistsCompat()
-    composeRule.onNodeWithTag("clear_all_bonds_button").assertExistsCompat()
+    composeRule.onNodeWithTag("settings_dark_mode_switch").assertExists()
+    composeRule.onNodeWithTag("manual_sync_button").assertExists()
+    composeRule.onNodeWithTag("clear_all_bonds_button").assertExists()
 
     // Final navigation sanity check.
     composeRule.onNodeWithTag("nav_my_bonds").performClick()
-    composeRule.onNodeWithTag("my_bonds_list").assertExistsCompat()
+    composeRule.onNodeWithTag("my_bonds_list").assertExists()
   }
 }
