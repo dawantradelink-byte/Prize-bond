@@ -356,7 +356,7 @@ class PrizeBondViewModel(
       _operationState.value = UiOperationState(isLoading = true)
       val bonds = selected.map { candidate ->
         UserBond(
-          bondNumber = candidate.number.padStart(7, '0'),
+          bondNumber = PrizeBondNumberValidator.requireValid(candidate.number),
           series = candidate.series.ifBlank { "All" },
           note = "Scanned with ML Kit OCR"
         )
