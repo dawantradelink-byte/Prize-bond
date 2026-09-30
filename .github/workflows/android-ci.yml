@@ -70,3 +70,5 @@ jobs:
           disable-linux-hw-accel: true
           emulator-boot-timeout: 900
           script: gradle connectedDebugAndroidTest
+
+# CI validation retrigger
